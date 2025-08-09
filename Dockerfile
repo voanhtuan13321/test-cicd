@@ -1,34 +1,32 @@
-# Use OpenJDK 17 as the base image
-FROM eclipse-temurin:17-jdk-jammy as builder
+# Build stage
+FROM maven:3.8.6-eclipse-temurin-17 as builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy the Maven wrapper and pom.xml
-COPY .mvn/ .mvn
-COPY mvnw .
+# Copy pom.xml
 COPY pom.xml .
 
-# Download all dependencies
-RUN ./mvnw dependency:go-offline -B
+# Download dependencies
+RUN mvn dependency:go-offline -B
 
-# Copy the source code
+# Copy source code
 COPY src src
 
 # Build the application
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
-# Use a smaller runtime image
+# Runtime stage
 FROM eclipse-temurin:17-jre-jammy
 
 # Set working directory
 WORKDIR /app
 
-# Copy the built JAR file from the builder stage
+# Copy the built JAR file
 COPY --from=builder /app/target/*.jar app.jar
 
-# Expose the port the app runs on
+# Expose port
 EXPOSE 8080
 
-# Command to run the application
+# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

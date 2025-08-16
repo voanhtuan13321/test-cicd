@@ -55,11 +55,14 @@ jobs:
           "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
           -d '{"clearCache": "do_not_clear"}')
         
-        # Check result
-        if echo "$response" | grep -q '"status":"queued"'; then
-          echo "Deployment triggered successfully!"
+        # Check result - both 'queued' and 'build_in_progress' are valid success statuses
+        if echo "$response" | grep -q '"status":"queued"' || \
+           echo "$response" | grep -q '"status":"build_in_progress"'; then
+          echo "✅ Deployment triggered successfully!"
+          echo "Status: $(echo $response | jq -r '.status')"
+          echo "Deployment ID: $(echo $response | jq -r '.id')"
         else
-          echo "Failed to trigger deployment:"
+          echo "❌ Failed to trigger deployment:"
           echo "$response"
           exit 1
         fi

@@ -1,0 +1,65 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Build with Maven
+      run: mvn clean package
+
+    - name: Run Unit Tests
+      run: mvn test
+
+  deploy:
+    name: Deploy to Render
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Deploy to Render using API
+      env:
+        RENDER_API_TOKEN: ${{ secrets.RENDER_API_TOKEN }}
+        SERVICE_ID: srv-d2ba3ufdiees73ei7750
+      run: |
+        # Create a new deployment
+        response=$(curl -s -X POST \
+          -H "Authorization: Bearer $RENDER_API_TOKEN" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+          -d '{"clearCache": "do_not_clear"}')
+        
+        # Check result
+        if echo "$response" | grep -q '"status":"queued"'; then
+          echo "Deployment triggered successfully!"
+        else
+          echo "Failed to trigger deployment:"
+          echo "$response"
+          exit 1
+        fi
